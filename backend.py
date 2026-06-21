@@ -1,8 +1,13 @@
 from groq import Groq
 import json
+from sentence_transformers import SentenceTransformer
+from db import insert_entry, insert_substory, insert_memory_object, insert_embeddings
+from dotenv import load_dotenv
+import os
 
-client = Groq(api_key="")
-
+load_dotenv()
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+model = SentenceTransformer('all-MiniLM-L6-v2')
 SUBSTORY_PROMPT = """
 You are a psychological journaling assistant. Your job is to extract distinct substories from a journal entry.
 
@@ -75,18 +80,6 @@ Output format:
 }
 """
 
-story_entry ="""today was kind of all over the place. had a dbms class in the morning and 
-the prof was going way too fast, couldn't keep up with the normalization 
-stuff at all. felt pretty dumb honestly.
-
-came back and worked on the substory extraction pipeline for echomind for 
-like 3 hours. got the ollama call working finally. small thing but it felt 
-good after the morning.
-
-been thinking about the internship drive a lot. keep calculating if i have 
-enough time to finish everything. probably overthinking it but it won't 
-go away.
-"""
 def clean_response(raw: str) -> dict:
     raw = raw.strip()
     start = raw.find("{")
@@ -116,9 +109,50 @@ def extract_memorial_object(substory_text: str) -> dict:
         temperature=0.2
     )
     return clean_response(response.choices[0].message.content)
+def extract_imp(memorial:dict) -> str:
+    appraisal = memorial["appraisal"] 
+    emotion = memorial["emotion"]
+    cognition = memorial["cognition"]
+    action_tendency = memorial["action_tendency"]
+    self_schema = memorial["self_schema"]
+    return f"""
+appraisal: {appraisal['goal_relevance']} {appraisal['goal_congruence']} {appraisal['agency']} {appraisal['coping_potential']} {appraisal["certainty"]}
+emotion: {emotion['primary']} {emotion['secondary']} {emotion["valence"]} {emotion["intensity"]}
+action: {action_tendency['urge']} {action_tendency['actual_behavior']}
+cognition: {cognition['automatic_thought']} {cognition['cognitive_distortion']}
+schema: {self_schema['belief_activated']} {self_schema['schema_domain']}
+"""
 
-substories = extract_substory(story_entry)
-for substory in substories["substories"]:
-    memorial_object = extract_memorial_object(substory["text"])
-    print(json.dumps(memorial_object, indent=2))
-    
+def encode(text: str) -> list:
+    vector = model.encode(text)
+    return vector.tolist()
+
+def process_entry(user_id: str,entry:str):
+    entry_id = insert_entry(user_id, entry)
+    print(f"Entry id : {entry_id}")
+    substories = extract_substory(entry)
+    for substory in substories["substories"]:
+        print(f"Processing substory : {substory["topic"]}")
+        print(substory["text"])
+        substory_id = insert_substory(entry_id,user_id,substory["text"],substory["topic"])
+        memorial = extract_memorial_object(substory["text"])
+        print(memorial)
+        memorial_id = insert_memory_object(substory_id,entry_id,user_id,memorial)
+        semantic_vector = encode(substory["text"])
+        psychological_vector = encode(extract_imp(memorial))
+        insert_embeddings(substory_id,memorial_id,user_id,semantic_vector,psychological_vector)
+    print("Entry fully processed")
+  
+
+if __name__ == "__main__":
+    process_entry("mayuur", """today was kind of all over the place. had a dbms class in the morning and 
+the prof was going way too fast, couldn't keep up with the normalization 
+stuff at all. felt pretty dumb honestly.
+
+came back and worked on the substory extraction pipeline for echomind for 
+like 3 hours. got the ollama call working finally. small thing but it felt 
+good after the morning.
+
+been thinking about the internship drive a lot. keep calculating if i have 
+enough time to finish everything. probably overthinking it but it won't 
+go away.""")
