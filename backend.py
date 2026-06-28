@@ -5,9 +5,15 @@ from db import insert_entry, insert_substory, insert_memory_object, insert_embed
 from dotenv import load_dotenv
 import os
 from cluster import run_insights
+from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi.responses import FileResponse
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 model = SentenceTransformer('all-MiniLM-L6-v2')
+app = FastAPI()
+class Input(BaseModel):
+    user_input: str
 SUBSTORY_PROMPT = """
 You are a psychological journaling assistant. Your job is to extract distinct substories from a journal entry.
 
@@ -143,12 +149,14 @@ def process_entry(user_id: str,entry:str):
         insert_embeddings(substory_id,memorial_id,user_id,semantic_vector,psychological_vector)
     print("Entry fully processed")
     run_insights(user_id)
-
+    return "success"
+@app.get("/")
+async def home():
+    return FileResponse("index.html")
   
-
-if __name__ == "__main__":
-    process_entry("mayuur", """Didn't get much done today and I'm weirdly okay with it. The day kind of took over before I had a chance to plan it properly — Arjun texted in the morning asking if I wanted to come with him and a few others to that new place near the main road for lunch, and I said yes mostly because I'd been inside for three days straight and my room was starting to feel like a verdict.
-Lunch was loud and good. Six people, two of whom I barely know, one of whom talked about crypto for twenty minutes straight. I ate too much and laughed more than I expected to. Priya was there which I didn't know beforehand — she brought up the hackathon in front of everyone and said "Mayuur's the one keeping the ML side honest" which I didn't know how to receive so I just nodded. Arjun gave me a look afterward. I told him to shut up.
-The Uthara thing happened on the walk back. She was coming the other direction with a friend, and we kind of just — stopped. Her friend kept walking a little ahead, doing that thing people do when they're giving you space they've decided you need. We talked for maybe ten minutes. Nothing significant on paper. She asked about EchoMind, I explained the clustering part, she said "so it basically knows you better than you know yourself" and I said that's the idea and she smiled in a way that I've been thinking about since.
-I don't know what to do with any of this. I got back to my room and sat on my bed for a while not looking at my phone. Then I looked at my phone. Then I put it face down. Rohan called and I let it ring out, which I feel bad about — I'll call him tomorrow. Made dinner at 9, ate it standing up, forgot to clean the pan.
-The thing about today is I can't tell if it was good or if I'm just telling myself it was. But I keep coming back to that smile and I think that's probably an answer of some kind.""")
+@app.post("/submit")
+async def run(data : Input) :
+    result = process_entry("mayuur",data.user_input)
+    return {
+        "result" : result
+    }
