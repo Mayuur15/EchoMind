@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 from db import insert_entry, insert_substory, insert_memory_object, insert_embeddings
 from dotenv import load_dotenv
 import os
-
+from cluster import run_insights
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -142,17 +142,13 @@ def process_entry(user_id: str,entry:str):
         psychological_vector = encode(extract_imp(memorial))
         insert_embeddings(substory_id,memorial_id,user_id,semantic_vector,psychological_vector)
     print("Entry fully processed")
+    run_insights(user_id)
+
   
 
 if __name__ == "__main__":
-    process_entry("mayuur", """today was kind of all over the place. had a dbms class in the morning and 
-the prof was going way too fast, couldn't keep up with the normalization 
-stuff at all. felt pretty dumb honestly.
-
-came back and worked on the substory extraction pipeline for echomind for 
-like 3 hours. got the ollama call working finally. small thing but it felt 
-good after the morning.
-
-been thinking about the internship drive a lot. keep calculating if i have 
-enough time to finish everything. probably overthinking it but it won't 
-go away.""")
+    process_entry("mayuur", """Didn't get much done today and I'm weirdly okay with it. The day kind of took over before I had a chance to plan it properly — Arjun texted in the morning asking if I wanted to come with him and a few others to that new place near the main road for lunch, and I said yes mostly because I'd been inside for three days straight and my room was starting to feel like a verdict.
+Lunch was loud and good. Six people, two of whom I barely know, one of whom talked about crypto for twenty minutes straight. I ate too much and laughed more than I expected to. Priya was there which I didn't know beforehand — she brought up the hackathon in front of everyone and said "Mayuur's the one keeping the ML side honest" which I didn't know how to receive so I just nodded. Arjun gave me a look afterward. I told him to shut up.
+The Uthara thing happened on the walk back. She was coming the other direction with a friend, and we kind of just — stopped. Her friend kept walking a little ahead, doing that thing people do when they're giving you space they've decided you need. We talked for maybe ten minutes. Nothing significant on paper. She asked about EchoMind, I explained the clustering part, she said "so it basically knows you better than you know yourself" and I said that's the idea and she smiled in a way that I've been thinking about since.
+I don't know what to do with any of this. I got back to my room and sat on my bed for a while not looking at my phone. Then I looked at my phone. Then I put it face down. Rohan called and I let it ring out, which I feel bad about — I'll call him tomorrow. Made dinner at 9, ate it standing up, forgot to clean the pan.
+The thing about today is I can't tell if it was good or if I'm just telling myself it was. But I keep coming back to that smile and I think that's probably an answer of some kind.""")
