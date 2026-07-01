@@ -70,6 +70,7 @@ def insert_insight(user_id: str, cluster_id: int, cluster_size: int,
     conn.close()
     
 def get_clusters(user_id: str):
+    
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT cluster_id , cluster_size , insight , dominant_emotion , dominant_action FROM cluster_insights WHERE user_id = %s",(user_id,))
