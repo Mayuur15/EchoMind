@@ -1,7 +1,7 @@
 from groq import Groq
 import json
 from sentence_transformers import SentenceTransformer
-from db import insert_entry, insert_substory, insert_memory_object, insert_embeddings
+from db import insert_entry, insert_substory, insert_memory_object, insert_embeddings , get_clusters
 from dotenv import load_dotenv
 import os
 from cluster import run_insights
@@ -135,21 +135,16 @@ def encode(text: str) -> list:
 
 def process_entry(user_id: str,entry:str):
     entry_id = insert_entry(user_id, entry)
-    print(f"Entry id : {entry_id}")
     substories = extract_substory(entry)
     for substory in substories["substories"]:
-        print(f"Processing substory : {substory["topic"]}")
-        print(substory["text"])
         substory_id = insert_substory(entry_id,user_id,substory["text"],substory["topic"])
         memorial = extract_memorial_object(substory["text"])
-        print(memorial)
         memorial_id = insert_memory_object(substory_id,entry_id,user_id,memorial)
         semantic_vector = encode(substory["text"])
         psychological_vector = encode(extract_imp(memorial))
         insert_embeddings(substory_id,memorial_id,user_id,semantic_vector,psychological_vector)
-    print("Entry fully processed")
-    run_insights(user_id)
-    return "success"
+    total = run_insights(user_id)
+    return int(total)
 @app.get("/")
 async def home():
     return FileResponse("index.html")
@@ -160,3 +155,22 @@ async def run(data : Input) :
     return {
         "result" : result
     }
+@app.get("/insights")
+async def get_insights():
+    rows = get_clusters("mayuur")
+    result = []
+    for clusters in rows:
+        cid = clusters[0]
+        size = clusters[1]
+        emotions = clusters[3]
+        actions = clusters[4]
+        insight = clusters[2]
+        result.append({
+            "id":             cid,
+            "size":           size,
+            "emotions":       emotions,
+            "actions":        actions,
+            "insight":        insight
+        })
+
+    return {"clusters": result}

@@ -1,6 +1,7 @@
 import psycopg2
 import os
 from dotenv import load_dotenv
+import json
 load_dotenv()
 
 def get_connection():
@@ -33,7 +34,6 @@ def insert_substory(entry_id: str, user_id: str, text: str, topic: str) -> str:
 def insert_memory_object(substory_id: str, entry_id: str, user_id: str, memorial: dict) -> str:
     conn = get_connection()
     cur = conn.cursor()
-    import json
     cur.execute(
         """INSERT INTO memory_objects 
         (substory_id, entry_id, user_id, situation, appraisal, emotion, cognition, action_tendency, self_schema)
@@ -53,6 +53,30 @@ def insert_memory_object(substory_id: str, entry_id: str, user_id: str, memorial
     cur.close()
     conn.close()
     return str(memory_id)
+
+def insert_insight(user_id: str, cluster_id: int, cluster_size: int, 
+                   insight: str, dominant_emotion: str, dominant_action: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO cluster_insights 
+            (user_id, cluster_id, cluster_size, insight, dominant_emotion, dominant_action)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING insight_id
+    """, (user_id, cluster_id, cluster_size, insight, dominant_emotion, dominant_action))
+    insight_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+def get_clusters(user_id: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT cluster_id , cluster_size , insight , dominant_emotion , dominant_action FROM cluster_insights WHERE user_id = %s",(user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
 
 def insert_embeddings(substory_id: str, memory_id: str, user_id: str, 
                       semantic_vector: list, psychological_vector: list):

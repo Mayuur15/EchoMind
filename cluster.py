@@ -7,6 +7,7 @@ from pgvector.psycopg2 import register_vector
 from groq import Groq
 import os
 import json
+from db import insert_insight
 
 load_dotenv()
 
@@ -77,7 +78,17 @@ def build_clusters(user_id):
     triggered = {cid: data for cid, data in clusters.items() if len(data["emotions"]) >= THRESHOLD}
     return triggered, len(rows)
 
-# ── GROQ INTERPRETATION ────────────────────────────────────────────────────────
+def check_existance(user_id, cluster_id, current_count):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT cluster_size FROM cluster_insights WHERE user_id = %s AND cluster_id = %s" ,(user_id,cluster_id))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if row is None:
+        return False
+    return row[0] == current_count
+
 
 def interpret_cluster(cluster_data, cluster_id):
     emo_counts  = Counter(cluster_data["emotions"]).most_common(3)
@@ -124,29 +135,26 @@ Keep it under 80 words."""
 
 
 def run_insights(user_id="mayuur"):
-    print(f"\n[EchoMind] Running insight check for {user_id}...")
-
     clusters, total = build_clusters(user_id)
-
+    
     if clusters is None:
-        print("[EchoMind] Not enough memories yet.")
         return
-
     if not clusters:
-        print(f"[EchoMind] No clusters have reached the threshold of {THRESHOLD} memories yet.")
         return
-
-    print(f"\n[EchoMind] {total} memories analyzed. {len(clusters)} cluster(s) crossed threshold of {THRESHOLD}.\n")
-
+    
     for cid, data in clusters.items():
-        emo_counts = Counter(data["emotions"]).most_common(3)
-        act_counts = Counter(data["actions"]).most_common(2)
-
-        print(f"── Cluster {cid} ({len(data['emotions'])} memories) ──────────────────────")
-        print(f"  Emotions:          {', '.join(f'{e} ({n}x)' for e, n in emo_counts)}")
-        print(f"  Action tendencies: {', '.join(f'{a} ({n}x)' for a, n in act_counts)}")
-        print(f"  Generating insight...")
-
+        if check_existance(user_id, int(cid), len(data["emotions"])):
+            continue
+        emo_counts  = Counter(data["emotions"]).most_common(1)
+        act_counts  = Counter(data["actions"]).most_common(1)
         insight = interpret_cluster(data, cid)
-        print(f"\n  INSIGHT: {insight}\n")
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM cluster_insights WHERE user_id = %s AND cluster_id = %s",(user_id,int(cid)))
+        conn.commit()
+        cur.close()
+        conn.close()
+        insert_insight(user_id, int(cid), len(data["emotions"]),insight,emo_counts[0][0],act_counts[0][0])
+    return total
+
 

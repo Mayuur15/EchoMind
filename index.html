@@ -1,34 +1,831 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>FastAPI Example</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EchoMind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080A0F;
+  --surface:   #0F1117;
+  --surface2:  #161922;
+  --surface3:  #1D2130;
+  --border:    #1E2235;
+  --border2:   #2A3050;
+  --text:      #DFE3F0;
+  --muted:     #52597A;
+  --subtle:    #8892B0;
+  --violet:    #7C6EF8;
+  --violet-lo: rgba(124,110,248,0.10);
+  --teal:      #2DD4BF;
+  --teal-lo:   rgba(45,212,191,0.08);
+  --rose:      #F06292;
+  --rose-lo:   rgba(240,98,146,0.10);
+  --amber:     #FBBF24;
+  --mono:      'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Ambient background ── */
+body::before {
+  content: '';
+  position: fixed;
+  top: -30vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70vw;
+  height: 60vh;
+  background: radial-gradient(ellipse at center,
+    rgba(124,110,248,0.06) 0%,
+    rgba(45,212,191,0.03) 50%,
+    transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ── */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 52px 24px 100px;
+}
+
+/* ── Brand ── */
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 52px;
+}
+
+.brand-name {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 26px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.brand-pill {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--violet);
+  background: var(--violet-lo);
+  border: 1px solid rgba(124,110,248,0.2);
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+/* ── Write section ── */
+.write-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.textarea-shell {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+/* Animated border via pseudo-element */
+.textarea-shell::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--violet), var(--teal));
+  opacity: 0;
+  transition: opacity 0.35s;
+  z-index: 0;
+}
+
+.textarea-shell:focus-within::before { opacity: 0.45; }
+
+.textarea-inner {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-radius: 13px;
+  padding: 1px;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 188px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.8;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 18px 20px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.textarea-shell:focus-within textarea { border-color: transparent; }
+textarea::placeholder { color: var(--muted); }
+
+.write-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.char-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.char-count.active { color: var(--subtle); }
+
+.reflect-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(135deg, var(--violet), #5B4FD8);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(124,110,248,0.25);
+}
+
+.reflect-btn:hover { opacity: 0.9; box-shadow: 0 4px 28px rgba(124,110,248,0.38); }
+.reflect-btn:active { transform: scale(0.975); }
+.reflect-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Spinner inside button */
+.btn-spinner {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: none;
+  flex-shrink: 0;
+}
+
+.reflect-btn.loading .btn-spinner { display: block; }
+.reflect-btn.loading .btn-label { opacity: 0.7; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Status strip ── */
+.status-strip {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 11px 16px;
+  border-radius: 9px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--subtle);
+  transition: border-color 0.2s;
+}
+
+.status-strip.show { display: flex; }
+.status-strip.err  { border-color: rgba(240,98,146,0.35); color: var(--rose); }
+
+.s-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--violet);
+  flex-shrink: 0;
+  animation: throb 1.6s ease-in-out infinite;
+}
+
+.status-strip.err .s-dot { background: var(--rose); animation: none; }
+@keyframes throb { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+
+/* ── Memory counter (shows after first submit) ── */
+.memory-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.memory-bar.show { display: flex; }
+
+.memory-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.memory-num {
+  font-family: 'Instrument Serif', serif;
+  font-size: 28px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.memory-unit {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.memory-hint {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 260px;
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* ── Section divider ── */
+.sect-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 44px 0 28px;
+}
+
+.sect-line { flex: 1; height: 1px; background: var(--border); }
+
+.sect-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Patterns section ── */
+.patterns-section { display: none; }
+.patterns-section.show { display: block; }
+
+/* ── Cluster card ── */
+.c-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.c-card:hover { border-color: var(--border2); }
+
+.c-card.expanded {
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+
+/* Card header row */
+.c-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.c-header:hover { background: rgba(255,255,255,0.018); }
+
+/* Cluster glyph */
+.c-glyph {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.c-meta { min-width: 0; }
+
+.c-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.c-emotion-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.c-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.c-preview {
+  font-size: 13px;
+  color: var(--subtle);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-chevron {
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform 0.25s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.c-card.expanded .c-chevron { transform: rotate(180deg); }
+
+/* Card body */
+.c-body {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+
+.c-card.expanded .c-body { display: block; }
+
+/* Insight block */
+.c-insight {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.c-insight-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.c-insight-text {
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: var(--text);
+}
+
+/* Two-column detail grid */
+.c-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.c-col {
+  padding: 18px 22px;
+}
+
+.c-col:first-child { border-right: 1px solid var(--border); }
+
+.c-detail-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  margin-top: 18px;
+}
+
+.c-detail-label:first-child { margin-top: 0; }
+
+/* Big stat display */
+.big-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.big-num {
+  font-family: 'Instrument Serif', serif;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.big-label { font-size: 12px; color: var(--muted); }
+
+/* Tag chip */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin: 3px 3px 0 0;
+}
+
+/* Action direction indicator */
+.action-direction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.action-arrow {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.action-word {
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* ── Empty / pending state ── */
+.pending-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px 28px;
+}
+
+.pending-card p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.pending-card strong { color: var(--subtle); font-weight: 500; }
+
+/* Progress bar to threshold */
+.threshold-bar-wrap {
+  margin-top: 16px;
+}
+
+.threshold-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-bottom: 6px;
+}
+
+.threshold-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.threshold-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--violet), var(--teal));
+  transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .shell { padding: 36px 16px 80px; }
+  .c-grid { grid-template-columns: 1fr; }
+  .c-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .brand { margin-bottom: 36px; }
+}
+</style>
 </head>
 <body>
+<div class="shell">
 
-<input id="textBox" type="text">
-<button onclick="send()">Submit</button>
+  <!-- Brand -->
+  <header class="brand">
+    <span class="brand-name">EchoMind</span>
+    <span class="brand-pill">beta</span>
+  </header>
 
-<p id="output"></p>
+  <!-- Write -->
+  <div class="write-section">
+    <div class="write-label">Today's entry</div>
+
+    <div class="textarea-shell">
+      <div class="textarea-inner">
+        <textarea
+          id="entry-input"
+          placeholder="Write freely. What happened, how it felt, what you were thinking. EchoMind will find the patterns."
+          rows="7"
+          spellcheck="true"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="write-footer">
+      <span class="char-count" id="char-count">0 characters</span>
+      <button class="reflect-btn" id="reflect-btn" onclick="submit()">
+        <div class="btn-spinner"></div>
+        <span class="btn-label">Reflect</span>
+      </button>
+    </div>
+
+    <div class="status-strip" id="status-strip">
+      <div class="s-dot"></div>
+      <span id="status-text">Processing…</span>
+    </div>
+  </div>
+
+  <!-- Memory counter -->
+  <div class="memory-bar" id="memory-bar">
+    <div class="memory-stat">
+      <span class="memory-num" id="memory-num">0</span>
+      <span class="memory-unit">memories stored</span>
+    </div>
+    <span class="memory-hint" id="memory-hint"></span>
+  </div>
+
+  <!-- Patterns -->
+  <div class="patterns-section" id="patterns-section">
+    <div class="sect-divider">
+      <div class="sect-line"></div>
+      <div class="sect-label">Patterns detected</div>
+      <div class="sect-line"></div>
+    </div>
+    <div id="clusters-wrap"></div>
+  </div>
+
+</div>
 
 <script>
-async function send() {
-    const text = document.getElementById("textBox").value;
+/* ── Constants ── */
+const THRESHOLD = 6;
 
-    const response = await fetch("/submit", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            user_input: text
-        })
+const PALETTE = [
+  { accent: '#7C6EF8', bg: 'rgba(124,110,248,0.10)', border: 'rgba(124,110,248,0.22)' },
+  { accent: '#2DD4BF', bg: 'rgba(45,212,191,0.08)',  border: 'rgba(45,212,191,0.20)'  },
+  { accent: '#F06292', bg: 'rgba(240,98,146,0.10)',  border: 'rgba(240,98,146,0.22)'  },
+  { accent: '#FBBF24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.22)'  },
+  { accent: '#34D399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.20)'  },
+];
+
+// Map action tendency → arrow glyph + color
+const ACTION_MAP = {
+  approach:     { arrow: '→', color: '#2DD4BF' },
+  avoid:        { arrow: '↩', color: '#F06292' },
+  ruminate:     { arrow: '↻', color: '#FBBF24' },
+  freeze:       { arrow: '⊘', color: '#94A3B8' },
+  attack:       { arrow: '↑', color: '#F87171' },
+  withdraw:     { arrow: '←', color: '#A78BFA' },
+  seek_support: { arrow: '↗', color: '#34D399' },
+  none:         { arrow: '·', color: '#52597A'  },
+};
+
+/* ── Char counter ── */
+const input = document.getElementById('entry-input');
+const charEl = document.getElementById('char-count');
+input.addEventListener('input', () => {
+  const n = input.value.length;
+  charEl.textContent = n.toLocaleString() + ' character' + (n !== 1 ? 's' : '');
+  charEl.className = 'char-count' + (n > 0 ? ' active' : '');
+});
+
+/* ── Status helpers ── */
+function setStatus(msg, isErr = false) {
+  const strip = document.getElementById('status-strip');
+  strip.className = 'status-strip show' + (isErr ? ' err' : '');
+  document.getElementById('status-text').textContent = msg;
+}
+function clearStatus() {
+  document.getElementById('status-strip').className = 'status-strip';
+}
+
+/* ── Keyboard shortcut ── */
+input.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submit();
+});
+
+/* ── Submit ── */
+async function submit() {
+  const text = input.value.trim();
+  if (!text) { setStatus('Write something first.', true); return; }
+
+  const btn = document.getElementById('reflect-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  const steps = [
+    'Extracting substories…',
+    'Mapping emotional patterns…',
+    'Running cluster analysis…',
+    'Generating insights…',
+  ];
+  let si = 0;
+  setStatus(steps[0]);
+  const ticker = setInterval(() => { si = (si + 1) % steps.length; setStatus(steps[si]); }, 1900);
+
+  try {
+    const res = await fetch('/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_input: text }),
     });
 
-    const data = await response.json();
+    clearInterval(ticker);
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const submitData = await res.json();
+    const totalMemories = submitData.result; // integer from your backend
 
-    document.getElementById("output").textContent = data.result;
+    // update memory bar
+    updateMemoryBar(totalMemories);
+
+    // fetch insights
+    setStatus('Loading patterns…');
+    const iRes = await fetch('/insights');
+    if (!iRes.ok) throw new Error(`Insights error ${iRes.status}`);
+    const iData = await iRes.json();
+
+    clearStatus();
+    btn.disabled = false;
+    btn.classList.remove('loading');
+
+    renderPatterns(iData.clusters || [], totalMemories);
+
+  } catch (err) {
+    clearInterval(ticker);
+    setStatus('Something went wrong — is the server running?', true);
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
 }
-</script>
 
+/* ── Memory bar ── */
+function updateMemoryBar(total) {
+  const bar = document.getElementById('memory-bar');
+  bar.classList.add('show');
+  document.getElementById('memory-num').textContent = total;
+
+  const hint = document.getElementById('memory-hint');
+  if (total < THRESHOLD) {
+    hint.textContent = `${THRESHOLD - total} more memories until first pattern`;
+  } else {
+    hint.textContent = 'Patterns are updating with each entry';
+  }
+}
+
+/* ── Render patterns ── */
+function renderPatterns(clusters, totalMemories) {
+  const section = document.getElementById('patterns-section');
+  const wrap    = document.getElementById('clusters-wrap');
+  section.classList.add('show');
+  wrap.innerHTML = '';
+
+  if (clusters.length === 0) {
+    const needed = Math.max(0, THRESHOLD - (totalMemories || 0));
+    wrap.innerHTML = `
+      <div class="pending-card">
+        <p>Entry saved. <strong>Keep journaling</strong> — patterns surface once enough memories cluster together. You need at least ${THRESHOLD} similar memories before a pattern triggers.</p>
+        <div class="threshold-bar-wrap">
+          <div class="threshold-bar-label">
+            <span>memories</span>
+            <span>${totalMemories || 0} / ${THRESHOLD}</span>
+          </div>
+          <div class="threshold-track">
+            <div class="threshold-fill" style="width:${Math.min(100, ((totalMemories||0)/THRESHOLD)*100)}%"></div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  clusters.forEach((cluster, idx) => {
+    wrap.appendChild(buildCard(cluster, idx));
+  });
+}
+
+/* ── Build a single cluster card ── */
+function buildCard(cluster, idx) {
+  const pal     = PALETTE[idx % PALETTE.length];
+  const action  = ACTION_MAP[cluster.actions] || ACTION_MAP['none'];
+  const insight = cluster.insight || '';
+  const preview = insight.length > 92 ? insight.slice(0, 92) + '…' : insight;
+
+  const card = document.createElement('div');
+  card.className = 'c-card';
+
+  card.innerHTML = `
+    <!-- Header -->
+    <div class="c-header" onclick="toggleCard(this.parentElement)">
+      <div class="c-glyph" style="background:${pal.bg};border:1px solid ${pal.border};color:${pal.accent}">
+        C${cluster.id}
+      </div>
+      <div class="c-meta">
+        <div class="c-top-row">
+          <span class="c-emotion-badge" style="background:${pal.bg};color:${pal.accent};border:1px solid ${pal.border}">
+            ${cluster.emotions}
+          </span>
+          <span class="c-count">${cluster.size} memories</span>
+        </div>
+        <div class="c-preview">${preview || 'Tap to expand'}</div>
+      </div>
+      <div class="c-chevron">⌄</div>
+    </div>
+
+    <!-- Body -->
+    <div class="c-body">
+
+      <!-- Insight -->
+      <div class="c-insight" style="border-left:3px solid ${pal.accent}">
+        <div class="c-insight-eyebrow">Pattern insight</div>
+        <p class="c-insight-text">${insight}</p>
+      </div>
+
+      <!-- Detail grid -->
+      <div class="c-grid">
+
+        <!-- Left col -->
+        <div class="c-col">
+          <div class="c-detail-label">Memories in pattern</div>
+          <div class="big-stat">
+            <span class="big-num" style="color:${pal.accent}">${cluster.size}</span>
+            <span class="big-label">of ${cluster.size} clustered</span>
+          </div>
+
+          <div class="c-detail-label">Dominant emotion</div>
+          <span class="tag" style="background:${pal.bg};color:${pal.accent};border:1px solid ${pal.border}">
+            ${cluster.emotions}
+          </span>
+        </div>
+
+        <!-- Right col -->
+        <div class="c-col">
+          <div class="c-detail-label">Action tendency</div>
+          <div class="action-direction">
+            <span class="action-arrow" style="color:${action.color}">${action.arrow}</span>
+            <span class="action-word" style="color:${action.color}">${cluster.actions}</span>
+          </div>
+
+          <div class="c-detail-label">Cluster ID</div>
+          <span class="tag" style="background:var(--surface3);color:var(--subtle);border:1px solid var(--border2);font-family:var(--mono);font-size:11px">
+            cluster_${cluster.id}
+          </span>
+        </div>
+
+      </div>
+    </div>`;
+
+  return card;
+}
+
+/* ── Toggle expand ── */
+function toggleCard(card) {
+  card.classList.toggle('expanded');
+}
+
+/* ── Load existing insights on page load ── */
+(async () => {
+  try {
+    const res = await fetch('/insights');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.clusters && data.clusters.length > 0) {
+      renderPatterns(data.clusters, null);
+    }
+  } catch (_) {}
+})();
+</script>
 </body>
 </html>
